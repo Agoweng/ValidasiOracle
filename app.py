@@ -1,3 +1,5 @@
+import cv2
+import numpy as np
 import pandas as pd
 from PIL import Image
 import pytesseract
@@ -9,8 +11,8 @@ st.set_page_config(
 
 st.title("🐔 Validator Daily Transaction - Oracle Forms")
 st.write(
-    "Aplikasi web mandiri untuk memvalidasi input data harian kandang"
-    "berdasarkan file Excel acuan."
+    "Aplikasi web mandiri dengan pra-pemrosesan gambar untuk hasil OCR yang"
+    " lebih akurat."
 )
 
 # Sidebar untuk Upload Master Excel Acuan
@@ -21,24 +23,16 @@ uploaded_excel = st.sidebar.file_uploader(
 
 if uploaded_excel is not None:
   try:
-    # Membaca seluruh sheet yang ada di Excel
     xls = pd.ExcelFile(uploaded_excel)
     sheet_names = xls.sheet_names
     st.sidebar.success(
         f"File Excel berhasil dimuat! Ditemukan {len(sheet_names)} sheet."
     )
 
-    # Validasi keberadaan sheet Deplesi
     if "Deplesi" in sheet_names:
       df_deplesi = pd.read_excel(xls, sheet_name="Deplesi")
-    else:
-      st.sidebar.warning(
-          "⚠️ Sheet 'Deplesi' tidak ditemukan di dalam file Excel!"
-      )
-
   except Exception as e:
     st.sidebar.error(f"Gagal membaca file Excel: {e}")
-    xls = None
 
   # Bagian Utama: Upload Screenshot Form
   st.markdown("---")
@@ -58,35 +52,46 @@ if uploaded_excel is not None:
     with col2:
       st.subheader("Hasil Analisis & Validasi")
       if st.button("🔍 Mulai Proses Validasi OCR", type="primary"):
-        with st.spinner("Sedang membaca teks dari gambar..."):
+        with st.spinner("Memproses gambar & membaca teks..."):
           try:
-            # Ekstrak teks menggunakan Tesseract OCR
-            extracted_text = pytesseract.image_to_string(image)
+            # --- TAHAP PRE-PROCESSING GAMBAR UNTUK OCR ---
+            # 1. Konversi PIL Image ke OpenCV format (OpenCV numpy array)
+            img_cv = np.array(image)
 
-            st.text_area(
-                "Teks yang terbaca oleh sistem:", extracted_text, height=150
+            # 2. Ubah ke Grayscale (Hitam Putih)
+            gray = cv2.cvtColor(img_cv, cv2.COLOR_RGB2GRAY)
+
+            # 3. Perbesar ukuran gambar (Resizing/Upscaling) agar teks kecil lebih tajam dibaca OCR
+            resized = cv2.resize(
+                gray, None, fx=2, fy=2, interpolation=cv2.INTER_CUBIC
             )
 
-            # Contoh Pengecekan Logika Dasar dari Teks OCR
-            st.markdown("### Status Pengecekan:")
+            # 4. Thresholding (Pembersihan latar belakang, membuat teks hitam pekat dan background putih bersih)
+            _, thresh = cv2.threshold(resized, 180, 255, cv2.THRESH_BINARY)
+            # ---------------------------------------------
 
-            # Simulasi pengecekan sederhana apakah ada angka atau teks penting
+            # Jalankan OCR pada gambar yang sudah dibersihkan
+            # Konfigurasi psm 6 menganggap gambar sebagai blok teks seragam
+            custom_config = r"--oem 3 --psm 6"
+            extracted_text = pytesseract.image_to_string(
+                thresh, config=custom_config
+            )
+
+            st.text_area(
+                "Teks yang terbaca oleh sistem (Cleaned OCR):",
+                extracted_text,
+                height=200,
+            )
+
+            # Validasi Dasar
             if "DAILY TRANSACTION" in extracted_text.upper():
               st.success(
-                  "✅ Format Form Valid: Jendela Oracle Forms terdeteksi"
-                  " dengan benar."
-              )
-
-              # Contoh pengecekan pakan / deplesi berdasarkan data Excel yang di-upload
-              # (Anda bisa menyesuaikan logika parsing teks OCR di sini)
-              st.info(
-                  "💡 Sesuai file Excel acuan, data dapat dicocokkan dengan"
-                  " sheet Deplesi dan sheet pakan masing-masing jenis kelamin."
+                  "✅ Format Form Valid: Jendela Oracle Forms terdeteksi."
               )
             else:
-              st.error(
-                  "❌ Peringatan: Gambar yang diunggah tidak terdeteksi sebagai"
-                  " Oracle Forms Daily Transaction yang valid."
+              st.warning(
+                  "⚠️ Teks 'DAILY TRANSACTION' kurang jelas terbaca. Coba"
+                  " pastikan screenshot lebih fokus pada area form."
               )
 
           except Exception as e:
@@ -95,5 +100,5 @@ if uploaded_excel is not None:
 else:
   st.info(
       "👈 Silakan *upload* file Excel acuan melalui sidebar di sebelah kiri"
-      " terlebih dahulu untuk memulai."
+      " terlebih dahulu."
   )
