@@ -4,8 +4,4 @@ openpyxl
 pytesseract
 pillow
 opencv-python-headless
-numpystreamlit
-pandas
-openpyxl
-pytesseract
-pillow
+numpy
