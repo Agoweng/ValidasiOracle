@@ -9,10 +9,10 @@ st.set_page_config(
     page_title="Oracle Form Validator", page_icon="🐔", layout="wide"
 )
 
-st.title("🐔 Validator Daily Transaction - Oracle Forms")
+st.title("Validator Daily Transaction - Oracle Forms")
 st.write(
-    "-"
-    "-"
+    "TRIAL V.1"
+    
 )
 
 # Sidebar untuk Upload Master Excel Acuan
