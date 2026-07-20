@@ -11,8 +11,8 @@ st.set_page_config(
 
 st.title("🐔 Validator Daily Transaction - Oracle Forms")
 st.write(
-    "Aplikasi web mandiri dengan pra-pemrosesan gambar untuk hasil OCR yang"
-    " lebih akurat."
+    "-"
+    "-"
 )
 
 # Sidebar untuk Upload Master Excel Acuan
