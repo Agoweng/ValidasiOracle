@@ -96,7 +96,6 @@ def parse_data_oracle(teks_ocr):
 
   return data_hasil
 
-
 if uploaded_image is not None:
   col1, col2 = st.columns(2)
 
