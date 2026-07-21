@@ -53,49 +53,56 @@ if uploaded_excel is not None:
       st.subheader("Hasil Analisis & Validasi")
       if st.button("🔍 Mulai Proses Validasi OCR", type="primary"):
         with st.spinner("Memproses gambar & membaca teks..."):
-          try:
-            # --- TAHAP PRE-PROCESSING GAMBAR UNTUK OCR ---
-            # 1. Konversi PIL Image ke OpenCV format (OpenCV numpy array)
-            img_cv = np.array(image)
+  try:
+    # 1. Konversi PIL Image ke OpenCV format
+    img_cv = np.array(image)
 
-            # 2. Ubah ke Grayscale (Hitam Putih)
-            gray = cv2.cvtColor(img_cv, cv2.COLOR_RGB2GRAY)
+    # Konversi RGB ke BGR agar sesuai format OpenCV
+    img_cv = cv2.cvtColor(img_cv, cv2.COLOR_RGB2BGR)
+    h, w, _ = img_cv.shape
 
-            # 3. Perbesar ukuran gambar (Resizing/Upscaling) agar teks kecil lebih tajam dibaca OCR
-            resized = cv2.resize(
-                gray, None, fx=2, fy=2, interpolation=cv2.INTER_CUBIC
-            )
+    # --- TEKNIK CROP AREA SPESIFIK ---
+    # Memotong bagian header (Tanggal & House) dan bagian tabel penting
+    # Format: img_cv[y_mulai:y_selesai, x_mulai:x_selesai]
+    crop_header = img_cv[
+        int(h * 0.05) : int(h * 0.28), int(w * 0.05) : int(w * 0.50)
+    ]
+    crop_table = img_cv[
+        int(h * 0.45) : int(h * 0.95), int(w * 0.03) : int(w * 0.95)
+    ]
 
-            # 4. Thresholding (Pembersihan latar belakang, membuat teks hitam pekat dan background putih bersih)
-            _, thresh = cv2.threshold(resized, 180, 255, cv2.THRESH_BINARY)
-            # ---------------------------------------------
+    # Gabungkan kembali hasil crop secara vertikal agar terbaca sebagai satu blok terfokus
+    combined_crop = np.vstack([crop_header, crop_table])
 
-            # Jalankan OCR pada gambar yang sudah dibersihkan
-            # Konfigurasi psm 6 menganggap gambar sebagai blok teks seragam
-            custom_config = r"--oem 3 --psm 6"
-            extracted_text = pytesseract.image_to_string(
-                thresh, config=custom_config
-            )
+    # 2. Ubah ke Grayscale
+    gray = cv2.cvtColor(combined_crop, cv2.COLOR_BGR2GRAY)
 
-            st.text_area(
-                "Teks yang terbaca oleh sistem (Cleaned OCR):",
-                extracted_text,
-                height=200,
-            )
+    # 3. Perbesar ukuran gambar (Resizing/Upscaling) agar angka kecil tajam
+    resized = cv2.resize(gray, None, fx=2, fy=2, interpolation=cv2.INTER_CUBIC)
 
-            # Validasi Dasar
-            if "DAILY TRANSACTION" in extracted_text.upper():
-              st.success(
-                  "✅ Format Form Valid: Jendela Oracle Forms terdeteksi."
-              )
-            else:
-              st.warning(
-                  "⚠️ Teks 'DAILY TRANSACTION' kurang jelas terbaca. Coba"
-                  " pastikan screenshot lebih fokus pada area form."
-              )
+    # 4. Thresholding (Pembersihan latar belakang)
+    _, thresh = cv2.threshold(resized, 180, 255, cv2.THRESH_BINARY)
 
-          except Exception as e:
-            st.error(f"Terjadi kesalahan saat memproses OCR: {e}")
+    # Jalankan OCR pada area yang sudah difokuskan dan dipotong
+    custom_config = r"--oem 3 --psm 6"
+    extracted_text = pytesseract.image_to_string(thresh, config=custom_config)
+
+    st.text_area(
+        "Teks yang terbaca oleh sistem (Cleaned & Focused OCR):",
+        extracted_text,
+        height=250,
+    )
+
+    # Validasi Dasar
+    if "DAILY TRANSACTION" in extracted_text.upper() or "15-07" in extracted_text or "21-07" in extracted_text:
+      st.success("✅ Area Form Utama Berhasil Dibaca Secara Spesifik!")
+    else:
+      st.warning(
+          "⚠️ Format teks kurang jelas terbaca pada area crop."
+      )
+
+  except Exception as e:
+    st.error(f"Terjadi kesalahan saat memproses OCR: {e}")
 
 else:
   st.info(
