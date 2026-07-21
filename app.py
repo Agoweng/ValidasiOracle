@@ -41,7 +41,7 @@ uploaded_image = st.file_uploader(
 )
 
 
-# Fungsi untuk membersihkan dan merapikan teks hasil OCR
+# Fungsi untuk membersihkan dan merapikan teks hasil OCR 
 def parse_data_oracle(teks_ocr):
   data_hasil = {}
 
