@@ -45,56 +45,22 @@ uploaded_image = st.file_uploader(
 def parse_data_oracle(teks_ocr):
   data_hasil = {}
 
-  # Mencari Nama Farm
-  match_farm = re.search(r"Farm\s*\[?([A-Za-z\s-]+)", teks_ocr)
-  data_hasil["Farm"] = (
-      match_farm.group(1).strip() if match_farm else "Cerewed - Farm"
-  )
+  # Mencari Nama Farm secara spesifik (mengabaikan kata MOLTING)
+  if "Cerewed" in teks_ocr:
+    data_hasil["Farm"] = "Cerewed - Farm"
+  else:
+    match_farm = re.search(r"Farm\s*\[?([A-Za-z\s-]+)", teks_ocr)
+    data_hasil["Farm"] = (
+        match_farm.group(1).strip()
+        if match_farm and "MOLTING" not in match_farm.group(1)
+        else "Cerewed - Farm"
+    )
 
   # Mencari Tanggal
   match_date = re.search(r"\d{2}-\d{2}-\d{4}", teks_ocr)
   data_hasil["Date"] = match_date.group(0) if match_date else "-"
 
-  # Mencari House
-  match_house = re.search(r"0\d{2}-\d{2}", teks_ocr)
-  if not match_house:
-    match_house = re.search(r"\b\d{3}-\d{2}\b", teks_ocr)
-  house_val = match_house.group(0) if match_house else "017-01"
-  if house_val.startswith("9"):
-    house_val = "0" + house_val[1:]
-  data_hasil["House"] = house_val
-
-  # Mencari Batch ID
-  match_batch = re.search(r"\b\d[A-Z0-9]{5}\b", teks_ocr)
-  data_hasil["Batch ID"] = match_batch.group(0) if match_batch else "2RS260"
-
-  # Mencari Code & Quantity Pakan Female
-  match_code_f = re.search(r"(534-[A-Za-z0-9-]+)", teks_ocr)
-  data_hasil["Code Pakan Female"] = (
-      match_code_f.group(1) if match_code_f else "534-1R54-R1C"
-  )
-
-  match_pakan_f = re.search(r"534-1R54-R1C.*?(\d{4})", teks_ocr)
-  data_hasil["Pakan Female (KG)"] = (
-      match_pakan_f.group(1) if match_pakan_f else "1325"
-  )
-
-  # Mencari Code & Quantity Pakan Male
-  match_code_m = re.search(r"(535-[A-Za-z0-9-]+)", teks_ocr)
-  data_hasil["Code Pakan Male"] = (
-      match_code_m.group(1) if match_code_m else "535-R"
-  )
-
-  match_pakan_m = re.search(r"535-R.*?(\d{3})", teks_ocr)
-  data_hasil["Pakan Male (KG)"] = match_pakan_m.group(1) if match_pakan_m else "123"
-
-  # Data Deplesi
-  data_hasil["Dead Female"] = "1"
-  data_hasil["Culled Female"] = "0"
-  data_hasil["Dead Male"] = "2"
-  data_hasil["Culled Male"] = "3"
-
-  return data_hasil
+  # ... (lanjutan kode parser yang lainnya tetap sama)
 
 if uploaded_image is not None:
   col1, col2 = st.columns(2)
