@@ -51,39 +51,47 @@ if uploaded_excel is not None:
       if st.button("🔍 Mulai Proses Validasi OCR", type="primary"):
         with st.spinner("Memproses gambar & membaca teks..."):
           try:
-            # --- TAHAP PRE-PROCESSING GAMBAR & CROP ---
+            # --- TAHAP PRE-PROCESSING GAMBAR & CROP TERPISAH ---
             img_cv = np.array(image)
             img_cv = cv2.cvtColor(img_cv, cv2.COLOR_RGB2BGR)
             h, w, _ = img_cv.shape
 
-            # Crop area spesifik (Header & Tabel)
+            # 1. Crop Area Header (Tanggal & House)
             crop_header = img_cv[
                 int(h * 0.05) : int(h * 0.28), int(w * 0.05) : int(w * 0.50)
             ]
+
+            # 2. Crop Area Tabel (Feeding & Take Out)
             crop_table = img_cv[
                 int(h * 0.45) : int(h * 0.95), int(w * 0.03) : int(w * 0.95)
             ]
-            combined_crop = np.vstack([crop_header, crop_table])
 
-            # Konversi ke Grayscale & Upscaling
-            gray = cv2.cvtColor(combined_crop, cv2.COLOR_BGR2GRAY)
-            resized = cv2.resize(
-                gray, None, fx=2, fy=2, interpolation=cv2.INTER_CUBIC
-            )
+            # Fungsi helper untuk OCR masing-masing potongan gambar
+            def jalankan_ocr(potongan_gambar):
+              gray = cv2.cvtColor(potongan_gambar, cv2.COLOR_BGR2GRAY)
+              resized = cv2.resize(
+                  gray, None, fx=2, fy=2, interpolation=cv2.INTER_CUBIC
+              )
+              _, thresh = cv2.threshold(resized, 180, 255, cv2.THRESH_BINARY)
+              custom_config = r"--oem 3 --psm 6"
+              return pytesseract.image_to_string(thresh, config=custom_config)
 
-            # Thresholding
-            _, thresh = cv2.threshold(resized, 180, 255, cv2.THRESH_BINARY)
+            # Eksekusi OCR terpisah untuk header dan tabel
+            teks_header = jalankan_ocr(crop_header)
+            teks_table = jalankan_ocr(crop_table)
 
-            # Jalankan OCR
-            custom_config = r"--oem 3 --psm 6"
-            extracted_text = pytesseract.image_to_string(
-                thresh, config=custom_config
+            # Gabungkan hasil teksnya
+            extracted_text = (
+                "--- HEADER INFO ---\n"
+                + teks_header
+                + "\n--- TABEL UTAMA ---\n"
+                + teks_table
             )
 
             st.text_area(
-                "Teks yang terbaca oleh sistem (Cleaned & Focused OCR):",
+                "Teks yang terbaca oleh sistem (Focused OCR):",
                 extracted_text,
-                height=250,
+                height=300,
             )
 
             # Validasi Dasar
@@ -92,7 +100,9 @@ if uploaded_excel is not None:
                 or "15-07" in extracted_text
                 or "21-07" in extracted_text
             ):
-              st.success("✅ Area Form Utama Berhasil Dibaca Secara Spesifik!")
+              st.success(
+                  "✅ Area Form Utama Berhasil Dibaca Secara Terfokus!"
+              )
             else:
               st.warning("⚠️ Format teks kurang jelas terbaca pada area crop.")
 
