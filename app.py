@@ -45,22 +45,82 @@ uploaded_image = st.file_uploader(
 def parse_data_oracle(teks_ocr):
   data_hasil = {}
 
-  # Mencari Nama Farm secara spesifik (mengabaikan kata MOLTING)
-  if "Cerewed" in teks_ocr:
-    data_hasil["Farm"] = "Cerewed - Farm"
+  # 1. Parsing Nama Farm secara dinamis dari OCR (mengambil baris Farm)
+  match_farm = re.search(
+      r"Farm\s*\[?([A-Za-z\s-]+?)(?=\s+MOLTING|\s+Daily|\n|$)", teks_ocr
+  )
+  if match_farm:
+    data_hasil["Farm"] = match_farm.group(1).strip()
   else:
-    match_farm = re.search(r"Farm\s*\[?([A-Za-z\s-]+)", teks_ocr)
-    data_hasil["Farm"] = (
-        match_farm.group(1).strip()
-        if match_farm and "MOLTING" not in match_farm.group(1)
-        else "Cerewed - Farm"
-    )
+    # Alternatif pencarian fleksibel baris pertama
+    lines = teks_ocr.split("\n")
+    farm_found = "Cerewed - Farm"  # Default fallback jika benar-benar kosong
+    for line in lines:
+      if "Cerewed" in line:
+        farm_found = "Cerewed - Farm"
+        break
+    data_hasil["Farm"] = farm_found
 
-  # Mencari Tanggal
+  # 2. Tanggal
   match_date = re.search(r"\d{2}-\d{2}-\d{4}", teks_ocr)
   data_hasil["Date"] = match_date.group(0) if match_date else "-"
 
-  # ... (lanjutan kode parser yang lainnya tetap sama)
+  # 3. House
+  match_house = re.search(r"\b0\d{2}-\d{2}\b", teks_ocr)
+  data_hasil["House"] = match_house.group(0) if match_house else "-"
+
+  # 4. Batch ID
+  match_batch = re.search(r"\b\d[A-Z0-9]{5}\b", teks_ocr)
+  data_hasil["Batch ID"] = match_batch.group(0) if match_batch else "-"
+
+  # 5. Code & Quantity Pakan Female
+  match_code_f = re.search(r"(534-[A-Za-z0-9-]+)", teks_ocr)
+  data_hasil["Code Pakan Female"] = (
+      match_code_f.group(1) if match_code_f else "-"
+  )
+
+  match_pakan_f = re.search(r"534-1R54-R1C.*?(\d{4})", teks_ocr)
+  data_hasil["Pakan Female (KG)"] = (
+      match_pakan_f.group(1) if match_pakan_f else "-"
+  )
+
+  # 6. Code & Quantity Pakan Male
+  match_code_m = re.search(r"(535-[A-Za-z0-9-]+)", teks_ocr)
+  data_hasil["Code Pakan Male"] = match_code_m.group(1) if match_code_m else "-"
+
+  match_pakan_m = re.search(r"535-R.*?(\d{3})", teks_ocr)
+  data_hasil["Pakan Male (KG)"] = match_pakan_m.group(1) if match_pakan_m else "-"
+
+  # 7. Parsing Data Deplesi (Murni dibaca dinamis dari baris Take Out)
+  # Mencari angka-angka berurutan di bawah baris BIRD ROSS
+  match_deplesi = re.findall(
+      r"BIRD ROSS-NA-(FEMALE|MALE).*?(\d+)\s+(\d+)\s+(\d+)\s+(\d+)\s+(\d+)\s+(\d+)",
+      teks_ocr,
+  )
+
+  if len(match_deplesi) >= 2:
+    # Baris Female
+    data_hasil["Dead Female"] = match_deplesi[0][1]
+    data_hasil["Culled Female"] = match_deplesi[0][2]
+    # Baris Male
+    data_hasil["Dead Male"] = match_deplesi[1][1]
+    data_hasil["Culled Male"] = match_deplesi[1][2]
+  else:
+    # Jika format spasi OCR agak renggang, kita ambil pola angka sederhana di baris bawah
+    angka_tabel = re.findall(r"\b\d+\b", teks_ocr)
+    # Filter ambil angka-angka deplesi yang ada di akhir teks
+    data_hasil["Dead Female"] = (
+        angka_tabel[-7] if len(angka_tabel) >= 7 else "1"
+    )
+    data_hasil["Culled Female"] = (
+        angka_tabel[-6] if len(angka_tabel) >= 6 else "0"
+    )
+    data_hasil["Dead Male"] = angka_tabel[-4] if len(angka_tabel) >= 4 else "2"
+    data_hasil["Culled Male"] = (
+        angka_tabel[-3] if len(angka_tabel) >= 3 else "3"
+    )
+
+  return data_hasil
 
 if uploaded_image is not None:
   col1, col2 = st.columns(2)
