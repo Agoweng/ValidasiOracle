@@ -56,14 +56,15 @@ if uploaded_excel is not None:
             img_cv = cv2.cvtColor(img_cv, cv2.COLOR_RGB2BGR)
             h, w, _ = img_cv.shape
 
-            # 1. Crop Area Header (Tanggal & House)
+            # --- SESUAIKAN KOORDINAT CROP AGAR LEBIH PAS ---
+            # Header disesuaikan agar hanya mengambil area kotak input form paling atas
             crop_header = img_cv[
-                int(h * 0.05) : int(h * 0.28), int(w * 0.05) : int(w * 0.50)
+                int(h * 0.12) : int(h * 0.32), int(w * 0.08) : int(w * 0.65)
             ]
 
-            # 2. Crop Area Tabel (Feeding & Take Out)
+            # Tabel Utama disesuaikan agar fokus ke bagian FEEDING dan TAKE OUT
             crop_table = img_cv[
-                int(h * 0.45) : int(h * 0.95), int(w * 0.03) : int(w * 0.95)
+                int(h * 0.52) : int(h * 0.90), int(w * 0.05) : int(w * 0.95)
             ]
 
             # Fungsi helper untuk OCR masing-masing potongan gambar
